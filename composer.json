@@ -1,6 +1,6 @@
 {
-    "name": "leomottarocha/correios",
-    "description": "API para consumo de dados dos correios",
+    "name": "leomottarocha/pipedrive",
+    "description": "API para consumo de dados do pipedrive",
     "license": "MIT",
     "autoload": {
         "psr-4": {
