@@ -2,6 +2,7 @@
     "name": "leomottarocha/pipedrive",
     "description": "API para consumo de dados do pipedrive",
     "license": "MIT",
+    "minimum-stability": "stable",
     "autoload": {
         "psr-4": {
             "Source\\": "source/"
@@ -15,8 +16,7 @@
             "role": "Desenvolvedor Full Stack"
         }
     ],
-    "minimum-stability": "stable",
     "require": {
-        "phpmailer/phpmailer": "^6.9"
+        "php": ">=7.4"
     }
 }
