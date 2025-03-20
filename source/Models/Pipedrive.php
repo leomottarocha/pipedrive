@@ -4,17 +4,43 @@ namespace source\Models;
 
 class Pipedrive
 {
-    public function retornarInformacao(string $url, string $token)
+    public function retornarInformacao(string $url)
     {
-
-        $url = $url . "api_token=" . $token;
+        // Inicializa o cURL
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+
+        // Configurações básicas
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Retorna o resultado como string
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Segue redirecionamentos
+
+        // Adiciona cabeçalhos, caso necessário (Exemplo: se precisar de autenticação)
+        // curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        //     'Authorization: Bearer SEU_TOKEN_AQUI',
+        // ]);
+
+        // Executa a requisição
         $data = curl_exec($ch);
-        $resposta = json_decode($data);
+
+        // Verifica se ocorreu erro durante a execução do cURL
+        if (curl_errno($ch)) {
+            // Retorna um erro caso haja falha
+            curl_close($ch);
+            return ['error' => 'Erro cURL: ' . curl_error($ch)];
+        }
+
+        // Obtém o código HTTP de resposta
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        // Verifica se a resposta HTTP foi bem-sucedida (código 200)
+        if ($httpCode !== 200) {
+            return ['error' => 'Erro na resposta HTTP: Código ' . $httpCode];
+        }
+
+        // Decodifica o JSON
+        $resposta = json_decode($data, true); // Decodifica como array associativo
+
+        // Retorna a resposta decodificada
         return $resposta;
     }
     public function cadastrarInformacao(string $url, array $data, string $token)
