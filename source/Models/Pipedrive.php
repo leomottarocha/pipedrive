@@ -6,6 +6,9 @@ class Pipedrive
 {
     public function retornarInformacao(string $url)
     {
+        //Corrige problemas de url
+        $url = urlencode($url);
+
         // Inicializa o cURL
         $ch = curl_init($url);
 
