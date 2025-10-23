@@ -74,7 +74,7 @@ class Pipedrive
         $decoded = json_decode($response, false);
 
         if ($status >= 200 && $status < 300) {
-            return [
+            return (object) [
                 'success' => true,
                 'status_code' => $status,
                 'data' => $decoded->data ?? $decoded,
@@ -82,7 +82,7 @@ class Pipedrive
             ];
         }
 
-        return [
+        return (object) [
             'success' => false,
             'status_code' => $status,
             'data' => null,
