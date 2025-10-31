@@ -62,31 +62,7 @@ final class Pipedrive
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($error) {
-            return [
-                'success' => false,
-                'status_code' => 0,
-                'data' => null,
-                'error_message' => 'Erro cURL: ' . $error
-            ];
-        }
+        return json_decode($response, false);
 
-        $decoded = json_decode($response, false);
-
-        if ($status >= 200 && $status < 300) {
-            return (object) [
-                'success' => true,
-                'status_code' => $status,
-                'data' => $decoded->data ?? $decoded,
-                'error_message' => null
-            ];
-        }
-
-        return (object) [
-            'success' => false,
-            'status_code' => $status,
-            'data' => null,
-            'error_message' => $decoded->error ?? 'Erro HTTP ' . $status
-        ];
     }
 }
