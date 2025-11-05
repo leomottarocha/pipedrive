@@ -31,7 +31,7 @@ final class Pipedrive
         return $this->request('DELETE', $url);
     }
 
-    private function request($method, $url, array $data = null)
+    private function request(string $method, string $url, array $data = null)
     {
         // Anexa o token se não estiver presente
         if (strpos($url, 'api_token=') === false) {
@@ -50,19 +50,38 @@ final class Pipedrive
         }
 
         if ($data !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            // Detecta se é upload de arquivo
+            $isFileUpload = false;
+            foreach ($data as $value) {
+                if ($value instanceof \CURLFile) {
+                    $isFileUpload = true;
+                    break;
+                }
+            }
+
+            if ($isFileUpload) {
+                // Upload de arquivo -> multipart/form-data
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            } else {
+                // Dados normais -> JSON
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            }
         }
 
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
-
         $response = curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return json_decode($response, false);
+        if ($error) {
+            return (object)[
+                'success' => false,
+                'error' => $error,
+                'status' => $status
+            ];
+        }
 
+        return json_decode($response, false);
     }
 }
