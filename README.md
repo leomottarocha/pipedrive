@@ -1,94 +1,54 @@
-# Classe Pipedrive para PHP
+# Cliente Pipedrive para PHP
 
-Classe PHP simples para consumo da API do Pipedrive utilizando `cURL`, com suporte a operações básicas de **criação**, **leitura**, **atualização** e **exclusão** de registros.
+Cliente PHP simples para consumir a API v1 do Pipedrive com cURL. A classe oferece operações de criação, consulta, atualização e exclusão, paginação automática em requisições `GET` e envio de arquivos com `CURLFile`.
 
-Esta versão também possui paginação automática para requisições `GET`, permitindo buscar todos os registros de um endpoint paginado ou limitar a consulta usando `start`, `limit` e `all`.
+## Recursos
 
----
-
-## Sumário
-
-1. [Visão geral](#visão-geral)
-2. [Requisitos](#requisitos)
-3. [Instalação](#instalação)
-4. [Autoload e namespace](#autoload-e-namespace)
-5. [Como instanciar a classe](#como-instanciar-a-classe)
-6. [Métodos disponíveis](#métodos-disponíveis)
-7. [Paginação em requisições GET](#paginação-em-requisições-get)
-8. [Exemplos de uso](#exemplos-de-uso)
-9. [Estrutura de retorno](#estrutura-de-retorno)
-10. [Tratamento de erros](#tratamento-de-erros)
-11. [Observações importantes](#observações-importantes)
-12. [Autor](#autor)
-13. [Licença](#licença)
-
----
-
-## Visão geral
-
-A classe `Pipedrive` centraliza chamadas HTTP para a API do Pipedrive, adicionando automaticamente o parâmetro `api_token` à URL quando ele ainda não estiver presente.
-
-Ela permite trabalhar com qualquer endpoint da API do Pipedrive por meio dos seguintes métodos:
-
-- `create()` para requisições `POST`;
-- `read()` para requisições `GET`;
-- `update()` para requisições `PUT`;
-- `delete()` para requisições `DELETE`.
-
-O método `read()` possui tratamento especial para paginação. Por padrão, ele percorre todas as páginas de um endpoint paginado e retorna um único objeto com todos os registros consolidados em `data`.
-
----
+- requisições `GET`, `POST`, `PUT` e `DELETE`;
+- inclusão automática do `api_token` na URL;
+- paginação automática de endpoints que retornam listas;
+- consulta de apenas uma página com `start` e `limit`;
+- consolidação das páginas no campo `data`;
+- envio de dados em JSON;
+- upload de arquivos como `multipart/form-data`;
+- retorno da resposta da API como objeto PHP.
 
 ## Requisitos
 
-- PHP `>= 7.4`;
-- Extensão `cURL` habilitada;
-- Composer para autoload PSR-4;
-- Token de API válido do Pipedrive.
+- PHP 7.4 ou superior;
+- extensão PHP cURL habilitada;
+- Composer;
+- token de API do Pipedrive.
 
----
+Para verificar se a extensão cURL está disponível:
+
+```bash
+php -m | grep curl
+```
+
+No Windows:
+
+```powershell
+php -m | Select-String curl
+```
 
 ## Instalação
 
-Execute o Composer para gerar o autoload:
+Clone ou copie o projeto e instale as dependências:
 
 ```bash
 composer install
 ```
 
-Caso altere namespaces, classes ou estrutura de pastas, atualize o autoload:
+O autoload PSR-4 está configurado para mapear o namespace `Source\` para a pasta `source/`. Após criar ou mover classes, regenere-o com:
 
 ```bash
 composer dump-autoload
 ```
 
----
+## Configuração
 
-## Autoload e namespace
-
-O arquivo `composer.json` define o autoload PSR-4 da seguinte forma:
-
-```json
-{
-  "autoload": {
-    "psr-4": {
-      "Source\\": "source/"
-    }
-  }
-}
-```
-
-Uso esperado no projeto:
-
-```php
-use Source\Models\Pipedrive;
-```
-
-> Observação: mantenha o namespace da classe compatível com o autoload do Composer. Se o `composer.json` usa `Source\\`, a classe deve declarar `namespace Source\Models;`.
-
----
-
-## Como instanciar a classe
+Carregue o autoload, obtenha o token de uma variável de ambiente e instancie a classe:
 
 ```php
 <?php
@@ -97,133 +57,68 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Source\Models\Pipedrive;
 
-$token = 'SEU_API_TOKEN_AQUI';
+$token = getenv('PIPEDRIVE_API_TOKEN');
+
+if (!$token) {
+    throw new RuntimeException('Defina a variável PIPEDRIVE_API_TOKEN.');
+}
 
 $pipedrive = new Pipedrive($token);
 ```
 
----
+Não versione tokens reais no código-fonte. Em desenvolvimento, configure `PIPEDRIVE_API_TOKEN` no ambiente ou use uma solução de variáveis de ambiente que mantenha o segredo fora do Git.
 
-## Métodos disponíveis
+## Uso
 
-### `create($url, array $data)`
+Os métodos recebem a URL completa do endpoint. A classe acrescenta `api_token` quando esse parâmetro ainda não está presente.
 
-Executa uma requisição `POST` para criar registros.
-
-```php
-$response = $pipedrive->create('https://api.pipedrive.com/v1/deals', [
-    'title' => 'Novo negócio de teste',
-    'value' => 1500,
-    'currency' => 'BRL'
-]);
-```
-
----
-
-### `read($url, int $start = 0, int $limit = 500, bool $all = true)`
-
-Executa uma requisição `GET`.
-
-Assinatura atual:
+### Criar um registro
 
 ```php
-public function read($url, int $start = 0, int $limit = 500, bool $all = true)
+$response = $pipedrive->create(
+    'https://api.pipedrive.com/v1/deals',
+    [
+        'title' => 'Novo negócio',
+        'value' => 1500,
+        'currency' => 'BRL',
+    ]
+);
+
+if ($response->success) {
+    echo "Negócio criado: {$response->data->id}";
+}
 ```
 
-Parâmetros:
+Dados comuns são codificados como JSON e enviados com o cabeçalho `Content-Type: application/json`.
 
-| Parâmetro | Tipo | Padrão | Descrição |
-|---|---:|---:|---|
-| `$url` | `string` | obrigatório | URL completa do endpoint da API. |
-| `$start` | `int` | `0` | Posição inicial da consulta. |
-| `$limit` | `int` | `500` | Quantidade de registros por página. |
-| `$all` | `bool` | `true` | Quando `true`, busca todas as páginas. Quando `false`, busca apenas uma página. |
-
----
-
-### `update($url, array $data)`
-
-Executa uma requisição `PUT` para atualizar registros.
-
-```php
-$response = $pipedrive->update('https://api.pipedrive.com/v1/deals/123', [
-    'title' => 'Negócio atualizado'
-]);
-```
-
----
-
-### `delete($url)`
-
-Executa uma requisição `DELETE` para remover registros.
-
-```php
-$response = $pipedrive->delete('https://api.pipedrive.com/v1/deals/123');
-```
-
----
-
-## Paginação em requisições GET
-
-A paginação foi implementada diretamente no método privado `request()`.
-
-Quando o método usado é `GET`, a classe:
-
-1. adiciona o `api_token`, caso ele ainda não esteja presente na URL;
-2. remove `start` e `limit` antigos da URL, caso existam;
-3. aplica os valores informados em `$start` e `$limit`;
-4. executa a chamada com `cURL`;
-5. verifica se `data` é uma lista ou um objeto único;
-6. consolida todos os registros em `data` quando o endpoint retorna lista;
-7. retorna a resposta original quando o endpoint retorna objeto único.
-
-### Busca completa por padrão
-
-```php
-$response = $pipedrive->read('https://api.pipedrive.com/v1/deals');
-```
-
-Essa chamada usa:
-
-```php
-$start = 0;
-$limit = 500;
-$all = true;
-```
-
-Ou seja, busca todas as páginas disponíveis.
-
----
-
-### Buscar apenas 1 registro
+### Consultar todos os registros
 
 ```php
 $response = $pipedrive->read(
-    'https://api.pipedrive.com/v1/deals',
-    0,
-    1,
-    false
+    'https://api.pipedrive.com/v1/deals'
 );
+
+foreach ($response->data as $deal) {
+    echo "{$deal->id} - {$deal->title}" . PHP_EOL;
+}
 ```
 
-Essa chamada busca apenas uma página, começando em `0`, com `limit = 1`.
+Por padrão, `read()` percorre todas as páginas, em lotes de 500 registros, e reúne os resultados em `$response->data`.
 
----
-
-### Buscar apenas 10 registros
+### Consultar apenas uma página
 
 ```php
 $response = $pipedrive->read(
-    'https://api.pipedrive.com/v1/deals',
-    0,
-    10,
-    false
+    'https://api.pipedrive.com/v1/organizations',
+    0,     // start
+    10,    // limit
+    false  // não buscar as páginas seguintes
 );
 ```
 
----
+Para limitar o retorno, o quarto argumento deve ser `false`. A chamada `read($url, 0, 10)` mantém `$all = true` e, portanto, percorre todas as páginas em lotes de 10.
 
-### Buscar registros a partir de uma posição específica
+### Consultar a partir de uma posição
 
 ```php
 $response = $pipedrive->read(
@@ -234,95 +129,98 @@ $response = $pipedrive->read(
 );
 ```
 
-Essa chamada busca todos os registros a partir da posição `500`, usando páginas de `500` registros.
+Nesse exemplo, a consulta começa na posição 500 e continua até o fim da coleção.
 
----
-
-## Exemplos de uso
-
-### Listar todos os negócios
-
-```php
-$response = $pipedrive->read('https://api.pipedrive.com/v1/deals');
-
-foreach ($response->data as $deal) {
-    echo $deal->id . ' - ' . $deal->title . PHP_EOL;
-}
-```
-
----
-
-### Listar organizações com limite de 5 registros
+### Consultar um registro específico
 
 ```php
 $response = $pipedrive->read(
-    'https://api.pipedrive.com/v1/organizations',
-    0,
-    5,
-    false
+    'https://api.pipedrive.com/v1/deals/123'
 );
 
-foreach ($response->data as $organization) {
-    echo $organization->id . ' - ' . $organization->name . PHP_EOL;
-}
-```
-
----
-
-### Buscar um negócio específico
-
-```php
-$response = $pipedrive->read('https://api.pipedrive.com/v1/deals/8393862');
-
-echo $response->data->id;
-echo $response->data->title;
-```
-
-Quando o endpoint retorna um registro único, `data` vem como objeto e não é convertido para array.
-
----
-
-### Criar um negócio
-
-```php
-$response = $pipedrive->create('https://api.pipedrive.com/v1/deals', [
-    'title' => '0000-leo-teste'
-]);
-
 if ($response->success) {
-    echo 'Negócio criado com sucesso.';
+    echo $response->data->title;
 }
 ```
 
----
+Quando o endpoint retorna um único registro, `data` permanece como objeto e a paginação é encerrada imediatamente.
 
-### Atualizar um negócio
-
-```php
-$response = $pipedrive->update('https://api.pipedrive.com/v1/deals/54980', [
-    'title' => 'Rio de Janeiro - Negócio atualizado'
-]);
-```
-
----
-
-### Excluir um negócio
+### Atualizar um registro
 
 ```php
-$response = $pipedrive->delete('https://api.pipedrive.com/v1/deals/8393862');
+$response = $pipedrive->update(
+    'https://api.pipedrive.com/v1/deals/123',
+    ['title' => 'Negócio atualizado']
+);
 ```
 
----
-
-## Estrutura de retorno
-
-A classe retorna o objeto decodificado da própria API do Pipedrive por meio de:
+### Excluir um registro
 
 ```php
-json_decode($response, false);
+$response = $pipedrive->delete(
+    'https://api.pipedrive.com/v1/deals/123'
+);
 ```
 
-Portanto, o retorno normalmente segue o padrão da API:
+### Enviar um arquivo
+
+Quando algum valor do array é uma instância de `CURLFile`, a classe envia todos os dados como `multipart/form-data`:
+
+```php
+$file = new CURLFile(
+    __DIR__ . '/documento.pdf',
+    'application/pdf',
+    'documento.pdf'
+);
+
+$response = $pipedrive->create(
+    'https://api.pipedrive.com/v1/files',
+    [
+        'file' => $file,
+        'deal_id' => 123,
+    ]
+);
+```
+
+## Referência dos métodos
+
+| Método | Requisição | Descrição |
+| --- | --- | --- |
+| `create(string $url, array $data)` | `POST` | Cria um registro ou envia um arquivo. |
+| `read(string $url, int $start = 0, int $limit = 500, bool $all = true)` | `GET` | Consulta um registro ou uma coleção. |
+| `update(string $url, array $data)` | `PUT` | Atualiza um registro. |
+| `delete(string $url)` | `DELETE` | Exclui um registro. |
+
+## Como funciona a paginação
+
+Em uma requisição `GET`, a classe:
+
+1. adiciona o token à URL, se necessário;
+2. remove parâmetros `start` e `limit` numéricos já existentes;
+3. aplica os valores informados em `read()`;
+4. executa a requisição;
+5. retorna imediatamente se `data` for um objeto;
+6. acumula os itens quando `data` for um array;
+7. continua enquanto `additional_data.pagination.more_items_in_collection` indicar que há mais itens.
+
+Se a API não fornecer o indicador de paginação, a classe considera que pode haver outra página quando a quantidade recebida for igual ao limite solicitado.
+
+Outros parâmetros da URL são preservados:
+
+```php
+$response = $pipedrive->read(
+    'https://api.pipedrive.com/v1/deals?filter_id=123&start=20&limit=20',
+    0,
+    10,
+    false
+);
+```
+
+A requisição usará `filter_id=123`, `start=0` e `limit=10`.
+
+## Retorno
+
+A resposta JSON é decodificada com `json_decode($response, false)`. Assim, o resultado normalmente é um `stdClass` com a estrutura fornecida pelo Pipedrive:
 
 ```php
 $response->success;
@@ -331,129 +229,59 @@ $response->additional_data;
 $response->related_objects;
 ```
 
-### Retorno de endpoint paginado
-
-Em endpoints de lista, como `/deals`, `/organizations` ou `/persons`, o campo `data` será um array:
-
-```php
-$response = $pipedrive->read('https://api.pipedrive.com/v1/deals');
-
-if ($response->success && is_array($response->data)) {
-    foreach ($response->data as $deal) {
-        echo $deal->title . PHP_EOL;
-    }
-}
-```
-
-### Retorno de endpoint único
-
-Em endpoints específicos, como `/deals/{id}`, o campo `data` será um objeto:
-
-```php
-$response = $pipedrive->read('https://api.pipedrive.com/v1/deals/8393862');
-
-if ($response->success && is_object($response->data)) {
-    echo $response->data->title;
-}
-```
-
----
+Em endpoints de coleção, `data` é um array. Em endpoints de item único, `data` é um objeto.
 
 ## Tratamento de erros
 
-A classe lança exceções do tipo `RuntimeException` quando ocorre:
-
-- falha ao inicializar o `cURL`;
-- erro durante a execução da requisição;
-- erro ao decodificar o JSON retornado pela API.
-
-Exemplo de uso com `try/catch`:
+Erros de inicialização ou execução do cURL e respostas que não contenham JSON válido geram uma `RuntimeException`:
 
 ```php
 try {
-    $response = $pipedrive->read('https://api.pipedrive.com/v1/deals', 0, 1, false);
+    $response = $pipedrive->read(
+        'https://api.pipedrive.com/v1/deals',
+        0,
+        1,
+        false
+    );
 
-    var_dump($response);
+    if (!$response->success) {
+        echo $response->error ?? 'A API recusou a requisição.';
+    }
 } catch (RuntimeException $exception) {
-    echo 'Erro: ' . $exception->getMessage();
+    echo 'Falha de comunicação: ' . $exception->getMessage();
 }
 ```
 
----
+Atualmente, a classe não lança exceção com base no status HTTP. Respostas de erro da API que contenham JSON válido são retornadas normalmente; verifique `success` e os campos de erro da resposta.
 
-## Observações importantes
+## Limitações e cuidados
 
-### Sobre o parâmetro `$all`
+- O token é enviado no parâmetro `api_token` da URL.
+- Não há configuração pública de timeout, cabeçalhos adicionais ou tentativas automáticas.
+- Não há validação explícita do status HTTP.
+- A paginação automática mantém todos os itens em memória; para coleções grandes, prefira consultar uma página por vez com `$all = false`.
+- O tratamento de paginação pressupõe o formato da API v1 (`additional_data.pagination`).
 
-Para limitar a quantidade de registros, informe `$all = false`.
+## Estrutura do projeto
 
-Correto para buscar apenas 1 registro:
-
-```php
-$response = $pipedrive->read($url, 0, 1, false);
+```text
+.
+├── composer.json
+├── index.php
+└── source/
+    └── Models/
+        └── Pipedrive.php
 ```
 
-Atenção:
-
-```php
-$response = $pipedrive->read($url, 0, 1);
-```
-
-Essa chamada mantém `$all = true`. Portanto, a classe buscará todos os registros, paginando de 1 em 1.
-
----
-
-### Sobre o `var_dump()` exibindo `...`
-
-Quando o `var_dump()` exibe `...`, isso normalmente não significa que a API retornou reticências. Em ambiente com Xdebug, o PHP pode limitar a profundidade de exibição de objetos grandes.
-
-Para visualizar melhor:
-
-```php
-echo '<pre>';
-print_r($response);
-echo '</pre>';
-```
-
-Ou ajuste a configuração do Xdebug:
-
-```ini
-xdebug.var_display_max_depth = 10
-xdebug.var_display_max_children = 256
-xdebug.var_display_max_data = 1024
-```
-
----
-
-### Sobre `start` e `limit` na URL
-
-A classe remove `start` e `limit` antigos da URL antes de aplicar os valores recebidos no método `read()`.
-
-Exemplo:
-
-```php
-$response = $pipedrive->read(
-    'https://api.pipedrive.com/v1/deals?filter_id=123&start=0&limit=500',
-    0,
-    10,
-    false
-);
-```
-
-A chamada final usará `start=0` e `limit=10`.
-
----
+A classe principal está em `Source\Models\Pipedrive`.
 
 ## Autor
 
-**Léo Motta Rocha**  
-Desenvolvedor Full Stack | Integrações | Automação de Dados
+Léo Motta Rocha — Desenvolvedor Full Stack, integrações e automação de dados.
 
-- LinkedIn: [linkedin.com/in/leomottarocha](https://www.linkedin.com/in/leomottarocha)
-- GitHub: [github.com/leomottarocha](https://github.com/leomottarocha)
-
----
+- [LinkedIn](https://www.linkedin.com/in/leomottarocha)
+- [GitHub](https://github.com/leomottarocha)
 
 ## Licença
 
-Distribuído sob a licença **MIT**.
+O pacote declara a licença MIT em `composer.json`.
