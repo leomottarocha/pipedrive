@@ -1,6 +1,6 @@
 <?php
 
-namespace source\Models;
+namespace Source\Models;
 
 final class Pipedrive
 {
@@ -145,7 +145,6 @@ final class Pipedrive
                 if ($all === false) {
                     break;
                 }
-
             } while ($temMaisRegistros && $totalPagina > 0);
 
             if ($ultimoResponse === null) {
